@@ -1,0 +1,220 @@
+' {$STAMP BS2}
+' {$PBASIC 2.5}
+
+
+countLoop VAR Word
+row       VAR Nib                                    ' Variable space for row counting
+column    VAR Nib                                    ' Variable space for column counting
+keypad    VAR Word                                   ' Variable space to store keypad output
+keypadOld VAR Word                                   ' Variable space to store old keypad output
+temp      VAR Nib                                    ' Variable space for polling column states
+dist      VAR Word                                   ' The distance entered
+distTemp  VAR Word                                   ' Temporary variable to store distance entered
+counter   VAR Byte                                   ' Variable to count number of times the keypad button is pressed
+val1      VAR Nib                                    ' Variable to keep calculation values to overfeed into itself
+val2      VAR Nib                                    ' Same as above
+val3      VAR Nib                                    ' Same as above
+val4      VAR Nib                                    ' Same as above
+noLoops   VAR Word
+           ' Number of times the loops must be executed. More the loops, more the distance covered.
+rounds    VAR Word
+           ' Number of times the bot must turn and traverse. For example, for a square, the no of sides = 4
+
+DEBUG CLS                                            ' Clear Debug Terminal
+
+'=======================================[INITIALIZATION]=======================================================================
+
+counter = 0
+keypad = 0
+keypadOld = keypad
+val1 = 0
+val2 = 0
+val3 = 0
+val4 = 0
+
+'===========================================[MAIN]============================================================================
+Main:
+'SUBROUTINES
+  GOSUB getKey                                                  'get the value of DISTANCE entered via Keypad
+  GOSUB look                                                    'Go to the LOOKUP Table and get the value of countLoop
+                                                                'countLoop is the number of Loops executed for the bot
+                                                                'to run
+  GOSUB display                                                 'Display value of distance that is Input via Keypad
+
+'LOOP TO MAKE THE BOT MOVE
+
+  FOR rounds = 1 TO 4                                           ' Square sides = 4
+   IF countLoop > 0 THEN
+                                                                'Run the bot till the noLoops = countLoop
+    FOR  noLoops = 1 TO countLoop
+
+     'Pulsewidth Modulation of the ServoMotors
+
+       PULSOUT 12, 650                                          ' 650 -> maximum speed CLOCKWISE
+                                                                '(THIS IS THE RIGHT WHEEL)
+       PULSOUT 10, 850                                          ' 850 -> maximum speed COUNTER CLOCKWISE
+                                                                '(THIS IS THE LEFT WHEEL )
+       PAUSE 20
+    NEXT
+      PAUSE 1000
+    FOR noLoops =1 TO 18                                        'Loops to turn the bot 90degrees anticlockwise
+                                                                'i.e. to turn left at the end of the side of the
+                                                                'square that was input from the keypad
+       PULSOUT 12  , 650
+       PULSOUT 10  , 650
+       PAUSE 20
+    NEXT
+      PAUSE 1000
+    ENDIF
+
+   IF countLoop =0 THEN                                         ' Rotation 4 times on the spot since distance =0
+    FOR noLoops =1 TO 18
+       PULSOUT 12  , 650
+       PULSOUT 10  , 650
+       PAUSE 20
+    NEXT
+      PAUSE 1000
+  ENDIF
+  NEXT
+
+
+
+'===========================================[GET KEYPAD INPUT]============================================================================
+
+' THIS SUBROUTINE TAKES THE VALUE FROM KEYPAD AND STORE IT IN Variable disttemp
+' THREE BUTTON PRESSES ARE REQUIRED FOR THE DISTANCE
+' For example , if we want DISTANCE d= 10, we MUST INPUT ----0-1-0---- ,i.e, 010 in the keypad
+' as the keypad value calculations are done by taking
+'
+'                    (1sT BUTTON pressed)*100 + (2nD BUTTON)*10 + THIRD BUTTON
+'
+' For example , if we enter d = 123 , then distance we calculated as 1*100 + 2 *10 + 2 = 123
+
+
+' PRESS button "A" to make the bot move.
+
+getKey:
+
+DO WHILE (keypad.BIT12 = 0)                    ' if you press A ,the bot starts to move
+
+ GOSUB ReadKeypad                              ' SUBROUTINE TO READ BUTTON PRESSED
+
+ IF (keypad) THEN
+    IF (keypad <> keypadOld) THEN
+        counter = counter + 1                  'Counters are used to make sure the number dont overfeed as the DO-WHILE LOOP
+                                               'runs
+    ENDIF
+    GOSUB  storeValue                          'SUBROUTINE to store button pressed
+    IF counter = 1 THEN
+       GOSUB hundreds                          'SUBROUTINE hundreds calculates x*100 ... tens calculate x*100+y*10
+                                               'ones calculate x*100+ y*10 +z
+    ENDIF
+    IF counter = 2 THEN
+      GOSUB tens
+    ENDIF
+    IF counter = 3 THEN
+      GOSUB ones
+    ENDIF
+
+    ENDIF
+
+ keypadOld = keypad                             ' Store keypad value in variable keypadOld
+LOOP
+RETURN
+
+'===========================================[READ KEYPAD]============================================================================
+' Read keypad button states
+ReadKeypad:
+ keypad = 0
+ OUTL = %00000000                             ' Initialize IO
+ DIRL = %00000000
+ FOR row = 0 TO 3
+ DIRB = %1111                                 ' Set columns (P7-P4) as outputs
+ OUTB = %0000                                 ' Pull columns low (act as pull down)
+ OUTA = 1 << row                              ' Set rows high one by one
+ DIRA = 1 << row
+ temp = 0                                     ' Reset temp variable to 0
+ FOR column = 0 TO 3
+ INPUT (column + 4)                           ' Set columns as inputs
+ temp = temp | (INB & (1 << column))          ' Poll column state and store in temp
+ NEXT
+ keypad = keypad << 4 | (Temp REV 4)          ' Store keypad value
+ NEXT
+RETURN
+
+'============================[STORE KEYPAD BUTTON PRESSED]============================================================================
+
+storeValue:
+ IF KeyPad.BIT15 THEN dist = 1
+ IF Keypad.BIT14 THEN dist = 2
+ IF KeyPad.BIT13 THEN dist  =3
+ IF KeyPad.BIT11 THEN dist =4
+ IF Keypad.BIT10 THEN dist =5
+ IF KeyPad.BIT9 THEN dist = 6
+ IF KeyPad.BIT7 THEN dist = 7
+ IF Keypad.BIT6 THEN dist = 8
+ IF KeyPad.BIT5 THEN dist = 9
+ IF Keypad.BIT2 THEN dist = 0
+
+ RETURN
+
+'======================================[CALCULATING DISTANCE]============================================================================
+
+' Storing the value in variable disttemp
+'calculates x*100 + y*10 + z = disttemp
+hundreds:
+  IF val1 =0  THEN
+    disttemp = dist*100
+  ENDIF
+  val1 = 1
+  RETURN
+
+tens:
+  IF val2 =0 THEN
+    dist = dist*10
+    disttemp = disttemp + dist
+  ENDIF
+  val2 = 1
+  RETURN
+
+ones:
+  IF val3 =0  THEN
+    disttemp = disttemp + dist
+  ENDIF
+  val3 = 1
+  RETURN
+
+'==================================[DISPLAY THE DISTANCE]============================================================================
+
+display:
+  IF val4 = 0 THEN
+    DEBUG DEC ? disttemp
+  ENDIF
+  val4 = 1
+RETURN
+
+'===================================[LOOKUP TABLES]============================================================================
+
+' LOOKUP table to Lookup the values of 'countLoop' based on the value of disttemp.
+' These values were calculated before hand.
+
+' DISADVANTAGE
+' Limited to only INDEX(=disttemp) values till 256 in lookup!
+' Therefore, maximum side of the square drawn can be 2.55 metres or 255 cms
+
+
+  LOOKUP disttemp , [0,2,5 ,7,9, 11,14,16, 18, 20, 23, 25, 27,  29, 32, 34, 36,38, 40,43,  45, 47, 49, 52, 54, 56, 58, 61, 63, 65, 67,70, 72,
+  74,76,79, 81, 83,85, 88  , 90  ,92  , 94  , 96  ,99  , 101  ,103  ,105  , 108  , 110  ,112  ,114  , 117  ,119  , 121  ,123  ,126  , 128  ,
+  130 ,132  ,135  ,137  ,139, 141  , 143  , 146  ,    148  ,150  , 152  , 155  ,  157  , 159  , 161  ,  164  ,166  , 168  , 170  , 173  ,
+  175 ,177  ,179  ,182  ,184, 186  , 188  , 190  , 193  , 195  , 197  , 199  , 202  , 204  , 206  ,208  , 211  ,213  ,215  ,217  , 220  ,
+  222 ,224  ,226  ,229  ,231, 233  , 235  , 237  , 240  , 242  , 244  , 246  , 249  , 251  , 253  ,255  , 258  ,260  ,262  ,264  ,
+  267 ,269  ,271  ,273  ,276, 278  , 280  , 282  , 284  , 287  , 289  , 291  , 293  , 296  , 298  ,300  , 302  ,305  ,307  ,309  ,
+  311 ,314  ,316  ,318  ,320, 323  , 325  , 327  , 329  , 332  , 334  , 336  , 338  , 340  , 343  ,345  , 347  ,349  ,352  ,354  ,
+  356 ,358  ,361  ,363  ,365, 367  , 370  , 372  , 374  , 376  , 379  , 381  , 383  , 385  , 387  ,390  , 392 , 394  ,396  ,399  ,
+  401 ,403  ,405  ,408  ,410 ,412, 414  , 417  , 419  , 421  , 423  , 426  , 428  , 430  , 432  , 434  ,437  , 439 , 441  ,443  ,446  ,
+  448 ,450  ,452  ,455  ,457, 459  , 461  , 464  , 466  , 468  , 470  , 473  , 475  , 477  , 479  ,481  , 484  ,486  ,488  ,
+  490 ,493  ,495  ,497  ,499, 502  , 504  , 506  , 508  , 511  , 513  , 515  , 517  , 520  , 522  ,524  , 526  ,528  ,531  ,
+  533 ,535  ,537  ,540  ,542, 544  , 546  , 549  , 551  , 553  , 555  , 558  , 560  , 562  , 564  ,567  , 569  ,571   ] , countLoop
+
+'==========================================================================================================================================
+'------------------------------------------------------------------------------------------------------------------------------------------
