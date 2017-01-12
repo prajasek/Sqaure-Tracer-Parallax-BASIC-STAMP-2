@@ -1,4 +1,4 @@
-# Sqaure-Tracer-Parallax-BASIC-STAMP-2
+# Sqaure-Tracer-Parallax-BASIC-STAMP-2- Open Loop Test Prototype for MAZE Mapping 
 Initial Open loop test of the three wheeled robot.
 
 TWO METHODS OF CODING ARE USED FOR THE ROBOT TO TRACE THE SQUARE.
